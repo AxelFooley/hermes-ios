@@ -86,6 +86,38 @@ jobs:
           path: build/xcodebuild.log
           if-no-files-found: ignore
 
+  build-ipa:
+    name: "IPA for Sideloadly (Windows)"
+    needs: [lint, secrets, tests]
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen
+      - name: Build unsigned IPA
+        run: |
+          mkdir -p build
+          xcodebuild archive \
+            -project Hermes.xcodeproj \
+            -scheme Hermes \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Hermes.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee build/archive.log
+          mkdir -p build/IPA/Payload
+          cp -R build/Hermes.xcarchive/Products/Applications/Hermes.app build/IPA/Payload/ || echo "Archive produced no app - check log"
+          cd build/IPA && zip -r ../Hermes-unsigned.ipa Payload
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hermes-unsigned-ipa
+          path: build/Hermes-unsigned.ipa
+          if-no-files-found: error
+
   codeql:
     name: "Security analysis (CodeQL)"
     needs: [lint, secrets]
