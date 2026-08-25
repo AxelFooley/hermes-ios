@@ -62,7 +62,6 @@ public final class WebSocketConnection: GatewayConnection, @unchecked Sendable {
             case .failure:
                 self.continuation?.finish()
             }
-            }
         }
     }
 }
