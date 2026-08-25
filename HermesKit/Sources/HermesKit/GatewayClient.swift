@@ -10,6 +10,7 @@ public actor GatewayClient {
     }
 
     public static let maxReconnectAttempts = 3
+    public static let stableConnectionSeconds: Int64 = 5
 
     private let makeConnection: @Sendable () async throws -> any GatewayConnection
     private var connection: (any GatewayConnection)?
@@ -36,18 +37,25 @@ public actor GatewayClient {
         var attempts = 0
         while attempts < Self.maxReconnectAttempts {
             state = attempts == 0 ? .connecting : .reconnecting(attempts: attempts)
+            let cycleStarted = ContinuousClock.now
             do {
                 let connection = try await makeConnection()
                 try await connection.connect()
                 self.connection = connection
-                attempts = 0
                 state = .ready
                 try await receiveLoop()
             } catch {
                 failPending(with: error)
             }
-            attempts += 1
-            if attempts < Self.maxReconnectAttempts {
+            // ponytail: 5s stability threshold — a connect-then-instant-drop flap
+            // must consume budget or the reconnect loop never terminates
+            // (mirrors the TUI's 3-attempts/60s crash-recovery window)
+            if cycleStarted.duration(to: .now) >= .seconds(Self.stableConnectionSeconds) {
+                attempts = 0
+            } else {
+                attempts += 1
+            }
+            if attempts > 0, attempts < Self.maxReconnectAttempts {
                 let backoff = [1.0, 2.0, 4.0][min(attempts - 1, 2)]
                 try? await Task.sleep(for: .seconds(backoff))
             }
