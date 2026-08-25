@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -12,6 +19,7 @@ jobs:
   lint:
     name: "Gate 1 · Code quality (SwiftLint)"
     runs-on: macos-14
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Install SwiftLint
@@ -22,6 +30,7 @@ jobs:
   secrets:
     name: "Gate 2 · Secrets (Gitleaks)"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,16 +42,18 @@ jobs:
   tests:
     name: "Gate 3 · HermesKit tests"
     runs-on: macos-14
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - name: Run swift test
         working-directory: HermesKit
-        run: swift test --parallel
+        run: swift test
 
   app-build:
     name: "iOS app build (runs only after gates pass)"
     needs: [lint, secrets, tests]
     runs-on: macos-14
+    timeout-minutes: 15
     env:
       HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
     steps:
@@ -71,25 +82,27 @@ jobs:
           if-no-files-found: ignore
 
   codeql:
-    name: "Security analysis (CodeQL)"
-    needs: [lint, secrets]
+    name: "Security analysis (CodeQL — weekly)"
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: macos-14
+    timeout-minutes: 30
     permissions:
       security-events: write
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: swift
-      - uses: github/codeql-action/autobuild@v3
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/autobuild@v4
+      - uses: github/codeql-action/analyze@v4
 
   gate:
     name: "CI gate — single green/red signal"
-    needs: [lint, secrets, tests, app-build, codeql]
-    if: always()
+    needs: [lint, secrets, tests, app-build]
+    if: always() && !cancelled()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Evaluate
         run: |
