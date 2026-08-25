@@ -32,7 +32,7 @@ struct BannerCard: View {
     }
 
     @ViewBuilder
-    private func section(_ title: String, open: Binding<Bool>, content: () -> some View) -> some View {
+    private func section(_ title: String, open: Binding<Bool>, content: @escaping () -> some View) -> some View {
         DisclosureGroup(isExpanded: open) {
             content()
                 .padding(.leading, 14)
