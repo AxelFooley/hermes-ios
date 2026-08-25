@@ -56,7 +56,7 @@ jobs:
   app-build:
     name: "iOS app build (runs only after gates pass)"
     needs: [lint, secrets, tests]
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 15
     env:
       HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
