@@ -25,6 +25,11 @@ public struct RPCRequest: Encodable, Sendable {
 public struct RPCError: Decodable, Error, Sendable, Equatable {
     public let code: Int
     public let message: String
+
+    public init(code: Int, message: String) {
+        self.code = code
+        self.message = message
+    }
 }
 
 public struct RPCResponse: Decodable, Sendable, Equatable {
