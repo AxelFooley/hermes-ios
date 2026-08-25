@@ -30,6 +30,7 @@ final class MockConnection: GatewayConnection, @unchecked Sendable {
 final class EchoMockConnection: GatewayConnection, @unchecked Sendable {
     var sent: [String] = []
     private var continuation: AsyncStream<String>.Continuation?
+    private var pending: [String] = []
 
     func connect() async throws {}
 
@@ -45,13 +46,21 @@ final class EchoMockConnection: GatewayConnection, @unchecked Sendable {
         } else {
             response = #"{"jsonrpc":"2.0","id":\#(identifierValue),"error":{"code":404,"message":"unknown command"}}"#
         }
-        continuation?.yield(response)
+        if let continuation {
+            continuation.yield(response)
+        } else {
+            pending.append(response)
+        }
     }
 
     func messages() -> AsyncStream<String> {
         AsyncStream<String> { continuation in
             self.continuation = continuation
             continuation.yield(#"{"type":"gateway.ready","skin":{}}"#)
+            for response in self.pending {
+                continuation.yield(response)
+            }
+            self.pending.removeAll()
         }
     }
 
