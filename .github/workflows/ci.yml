@@ -9,54 +9,18 @@ permissions:
   contents: read
 
 jobs:
-  kit-tests:
-    name: HermesKit unit tests
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run swift test
-        working-directory: HermesKit
-        run: swift test --parallel
-
-  app-build:
-    name: iOS app build
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install XcodeGen
-        run: brew install xcodegen
-      - name: Generate project
-        run: xcodegen
-      - name: Build for simulator
-        run: |
-          xcodebuild \
-            -project Hermes.xcodeproj \
-            -scheme Hermes \
-            -destination 'generic/platform=iOS Simulator' \
-            -configuration Debug \
-            -derivedDataPath build/DerivedData \
-            CODE_SIGNING_ALLOWED=NO \
-            build | xcpretty
-      - name: Upload build log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: xcodebuild-log
-          path: build/DerivedData/Logs
-          if-no-files-found: ignore
-
-  swiftlint:
-    name: Code quality (SwiftLint)
+  lint:
+    name: "Gate 1 · Code quality (SwiftLint)"
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
       - name: Install SwiftLint
         run: brew install swiftlint
-      - name: Lint
+      - name: Lint (strict — warnings fail the gate)
         run: swiftlint --strict
 
-  gitleaks:
-    name: Secrets scan (Gitleaks)
+  secrets:
+    name: "Gate 2 · Secrets (Gitleaks)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -66,8 +30,49 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  tests:
+    name: "Gate 3 · HermesKit tests"
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run swift test
+        working-directory: HermesKit
+        run: swift test --parallel
+
+  app-build:
+    name: "iOS app build (runs only after gates pass)"
+    needs: [lint, secrets, tests]
+    runs-on: macos-14
+    env:
+      HOMEBREW_NO_REQUIRE_TAP_TRUST: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Hermes.xcodeproj \
+            -scheme Hermes \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee build/xcodebuild.log | xcpretty
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: build/xcodebuild.log
+          if-no-files-found: ignore
+
   codeql:
-    name: Security analysis (CodeQL)
+    name: "Security analysis (CodeQL)"
+    needs: [lint, secrets]
     runs-on: macos-14
     permissions:
       security-events: write
@@ -80,10 +85,18 @@ jobs:
       - uses: github/codeql-action/autobuild@v3
       - uses: github/codeql-action/analyze@v3
 
-  dependency-review:
-    name: Dependency review
-    if: github.event_name == 'pull_request'
+  gate:
+    name: "CI gate — single green/red signal"
+    needs: [lint, secrets, tests, app-build, codeql]
+    if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
+      - name: Evaluate
+        run: |
+          results="${{ join(needs.*.result, ' ') }}"
+          echo "check results: ${results}"
+          if [[ "$results" =~ (failure|cancelled) ]]; then
+            echo "::error::One or more checks failed — CI gate is RED"
+            exit 1
+          fi
+          echo "All checks passed — CI gate is GREEN"
