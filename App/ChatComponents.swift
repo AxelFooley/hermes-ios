@@ -17,9 +17,9 @@ struct BannerCard: View {
             section("Tools", open: $toolsOpen) {
                 toolChips(["terminal", "browser", "files", "memory"])
             }
-            section("Skills", open: $skillsOpen) {}
-            section("System Prompt", open: $promptOpen) {}
-            section("MCP Servers", open: $mcpOpen) {}
+            section("Skills", open: $skillsOpen) { EmptyView() }
+            section("System Prompt", open: $promptOpen) { EmptyView() }
+            section("MCP Servers", open: $mcpOpen) { EmptyView() }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
