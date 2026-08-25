@@ -87,8 +87,8 @@ jobs:
           if-no-files-found: ignore
 
   codeql:
-    name: "Security analysis (CodeQL — weekly)"
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: "Security analysis (CodeQL)"
+    needs: [lint, secrets]
     runs-on: macos-14
     timeout-minutes: 30
     permissions:
@@ -104,7 +104,7 @@ jobs:
 
   gate:
     name: "CI gate — single green/red signal"
-    needs: [lint, secrets, tests, app-build]
+    needs: [lint, secrets, tests, app-build, codeql]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
