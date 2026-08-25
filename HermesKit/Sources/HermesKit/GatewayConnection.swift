@@ -115,9 +115,9 @@ public enum Connections {
     }
 
     static func websocketURL(from url: URL, path: String) -> URL {
-        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        components?.scheme = (components?.scheme == "https") ? "wss" : "ws"
-        components?.path = path
-        return components?.url ?? url
+        guard var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        comps.scheme = (comps.scheme == "https") ? "wss" : "ws"
+        comps.path = path
+        return comps.url ?? url
     }
 }
