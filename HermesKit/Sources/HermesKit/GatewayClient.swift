@@ -52,6 +52,7 @@ public actor GatewayClient {
                 try? await Task.sleep(for: .seconds(backoff))
             }
         }
+        failPending(with: RPCError(code: -1, message: "gateway unreachable after \(attempts) attempts"))
         state = .failed("gateway unreachable after \(attempts) attempts")
     }
 

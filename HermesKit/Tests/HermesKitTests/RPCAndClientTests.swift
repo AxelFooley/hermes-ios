@@ -27,6 +27,43 @@ final class MockConnection: GatewayConnection, @unchecked Sendable {
     func close() async {}
 }
 
+final class EchoMockConnection: GatewayConnection, @unchecked Sendable {
+    var sent: [String] = []
+    private var continuation: AsyncStream<String>.Continuation?
+    private var stream: AsyncStream<String>?
+
+    func connect() async throws {}
+
+    func send(_ text: String) async throws {
+        sent.append(text)
+        guard let json = JSONValue.parse(text),
+              let identifier = json["id"]?.doubleValue,
+              let method = json["method"]?.stringValue else { return }
+        let identifierValue = Int(identifier)
+        let response: String
+        if method == "config.get" {
+            response = #"{"jsonrpc":"2.0","id":\#(identifierValue),"result":{"interface":"tui"}}"#
+        } else {
+            response = #"{"jsonrpc":"2.0","id":\#(identifierValue),"error":{"code":404,"message":"unknown command"}}"#
+        }
+        continuation?.yield(response)
+    }
+
+    func messages() -> AsyncStream<String> {
+        if let existing = stream { return existing }
+        let created = AsyncStream<String> { continuation in
+            self.continuation = continuation
+            continuation.yield(#"{"type":"gateway.ready","skin":{}}"#)
+        }
+        stream = created
+        return created
+    }
+
+    func close() async {
+        continuation?.finish()
+    }
+}
+
 final class RPCAndClientTests: XCTestCase {
     func testRequestEncoding() {
         let request = RPCRequest(id: 7, method: "config.get", params: ["scope": .string("full")])
@@ -48,11 +85,7 @@ final class RPCAndClientTests: XCTestCase {
     }
 
     func testClientCorrelatesResponses() async throws {
-        let mock = MockConnection(lines: [
-            #"{"jsonrpc":"2.0","id":1,"result":{"interface":"tui"}}"#,
-            #"{"jsonrpc":"2.0","id":2,"error":{"code":404,"message":"unknown command"}}"#,
-            #"{"type":"gateway.ready","skin":{}}"#,
-        ])
+        let mock = EchoMockConnection()
         let client = GatewayClient { mock }
         let runTask = Task { await client.run() }
         defer { runTask.cancel() }
