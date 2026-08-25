@@ -1,0 +1,20 @@
+included:
+  - HermesKit/Sources
+  - App
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+
+line_length:
+  warning: 140
+  error: 180
+
+identifier_name:
+  min_length: 2
+
+type_body_length:
+  warning: 300
+
+function_body_length:
+  warning: 60
