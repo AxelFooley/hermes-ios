@@ -30,7 +30,6 @@ final class MockConnection: GatewayConnection, @unchecked Sendable {
 final class EchoMockConnection: GatewayConnection, @unchecked Sendable {
     var sent: [String] = []
     private var continuation: AsyncStream<String>.Continuation?
-    private var stream: AsyncStream<String>?
 
     func connect() async throws {}
 
@@ -50,13 +49,10 @@ final class EchoMockConnection: GatewayConnection, @unchecked Sendable {
     }
 
     func messages() -> AsyncStream<String> {
-        if let existing = stream { return existing }
-        let created = AsyncStream<String> { continuation in
+        AsyncStream<String> { continuation in
             self.continuation = continuation
             continuation.yield(#"{"type":"gateway.ready","skin":{}}"#)
         }
-        stream = created
-        return created
     }
 
     func close() async {
