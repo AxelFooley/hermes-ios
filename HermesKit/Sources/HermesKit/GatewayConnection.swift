@@ -61,7 +61,7 @@ public final class WebSocketConnection: GatewayConnection, @unchecked Sendable {
                 self.pump()
             case .failure:
                 self.continuation?.finish()
-            @unknown default:
+            default:
                 self.continuation?.finish()
             }
         }
@@ -94,11 +94,11 @@ public enum Connections {
         }
         let patterns = [
             #"__HERMES_SESSION_TOKEN__\s*=\s*"([^"]+)""#,
-            #"[?&]token=([A-Za-z0-9._\-]+)"#,
+            #"[?&]token=([A-Za-z0-9._\-]+)"#
         ]
         for pattern in patterns {
             if let match = html.range(of: pattern, options: .regularExpression) {
-                let captured = captureGroup(from: String(match), in: pattern, source: html, range: match)
+                let captured = captureGroup(from: String(html[match]), in: pattern, source: html, range: match)
                 if !captured.isEmpty { return captured }
             }
         }

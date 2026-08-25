@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 
 public enum MarkdownRenderer {
     public static func render(_ markdown: String) -> AttributedString {
@@ -47,12 +46,10 @@ public enum MarkdownRenderer {
 
     static func inline(_ text: String) -> AttributedString {
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        return (try? AttributedString(text, options: options)) ?? AttributedString(text)
+        return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
     }
 
     static func codeBlock(_ lines: [String]) -> AttributedString {
-        var result = AttributedString(lines.joined(separator: "\n"))
-        result[AttributeScopes.SwiftUI.Attributes.FontAttribute.self] = .system(.body, design: .monospaced)
-        return result
+        AttributedString(lines.joined(separator: "\n"))
     }
 }

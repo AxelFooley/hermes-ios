@@ -79,12 +79,12 @@ enum KeychainStore {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: "ai.hermes.ios",
-            kSecAttrAccount as String: account,
+            kSecAttrAccount as String: account
         ]
         SecItemDelete(query as CFDictionary)
         guard !value.isEmpty else { return }
         let attributes: [String: Any] = [
-            kSecValueData as String: Data(value.utf8),
+            kSecValueData as String: Data(value.utf8)
         ]
         SecItemAdd(query.merging(attributes) { _, new in new } as CFDictionary, nil)
     }
@@ -95,7 +95,7 @@ enum KeychainStore {
             kSecAttrService as String: "ai.hermes.ios",
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecMatchLimit as String: kSecMatchLimitOne
         ]
         var result: AnyObject?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,

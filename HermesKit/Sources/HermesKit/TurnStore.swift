@@ -41,6 +41,19 @@ public final class TurnStore: @unchecked Sendable {
 
     public func apply(_ event: GatewayEvent) {
         switch event.type {
+        case "message.start", "message.delta", "message.complete":
+            handleMessage(event)
+        case "status.update", "error":
+            handleStatus(event)
+        case "tool.start", "tool.progress", "tool.complete":
+            handleTool(event)
+        default:
+            break
+        }
+    }
+
+    private func handleMessage(_ event: GatewayEvent) {
+        switch event.type {
         case "message.start":
             isBusy = true
             streamingText = ""
@@ -51,10 +64,20 @@ public final class TurnStore: @unchecked Sendable {
             transcript.append(TranscriptRow(role: "assistant", text: text))
             streamingText = nil
             isBusy = false
-        case "status.update":
-            if let text = event.text("text") {
-                statusText = text
-            }
+        default: break
+        }
+    }
+
+    private func handleStatus(_ event: GatewayEvent) {
+        if event.type == "status.update", let text = event.text("text") {
+            statusText = text
+        } else if let message = event.text("message") {
+            statusText = "error: \(message)"
+        }
+    }
+
+    private func handleTool(_ event: GatewayEvent) {
+        switch event.type {
         case "tool.start":
             if let id = event.text("tool_id"), let name = event.text("name") {
                 tools.append(ToolActivity(id: id, name: name, preview: event.text("args_text")))
@@ -64,19 +87,17 @@ public final class TurnStore: @unchecked Sendable {
                 tools[index].preview = event.text("preview")
             }
         case "tool.complete":
-            let toolID = event.text("tool_id")
-            let name = event.text("name")
-            if let index = tools.lastIndex(where: { $0.id == toolID || $0.name == name }) {
-                tools[index].isRunning = false
-                tools[index].summary = event.text("summary")
-            }
-        case "error":
-            if let message = event.text("message") {
-                statusText = "error: \(message)"
-            }
-        default:
-            break
+            completeTool(event)
+        default: break
         }
+    }
+
+    private func completeTool(_ event: GatewayEvent) {
+        let toolID = event.text("tool_id")
+        let name = event.text("name")
+        guard let index = tools.lastIndex(where: { $0.id == toolID || $0.name == name }) else { return }
+        tools[index].isRunning = false
+        tools[index].summary = event.text("summary")
     }
 
     public func userSent(_ text: String) {

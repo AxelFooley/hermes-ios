@@ -131,7 +131,7 @@ public struct Theme: Sendable, Equatable {
             ("selection_bg", \.selectionBg),
             ("shell_dollar", \.shellDollar),
             ("diff_added", \.diffAdded),
-            ("diff_removed", \.diffRemoved),
+            ("diff_removed", \.diffRemoved)
         ]
         for (key, path) in stringKeys {
             if let value = skin[key]?.stringValue {

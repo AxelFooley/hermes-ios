@@ -285,7 +285,7 @@ struct SlashAutocompleteView: View {
         ("/clear", "new session"),
         ("/voice", "voice mode"),
         ("/yolo", "auto-approve toggle"),
-        ("/compress", "compress session context"),
+        ("/compress", "compress session context")
     ]
 
     var body: some View {
